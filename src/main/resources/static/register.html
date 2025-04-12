@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <title>User Registration - GoMechanic by Yash</title>
+    <style>
+        body {
+          font-family: 'Segoe UI', sans-serif;
+          background-color: #fff2f2;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          height: 100vh;
+          margin: 0;
+        }
+
+        .container {
+          width: 420px;
+          background-color: #fff;
+          padding: 30px;
+          border-radius: 16px;
+          box-shadow: 0 0 20px rgba(255, 0, 0, 0.1);
+          border-top: 8px solid #d62828;
+          position: relative;
+        }
+
+        .logo {
+          display: block;
+          margin: 0 auto 20px;
+          width: 80px;
+          height: 80px;
+          object-fit: contain;
+        }
+
+        h2 {
+          text-align: center;
+          color: #d62828;
+          margin-bottom: 20px;
+        }
+
+        input[type="text"],
+        input[type="password"],
+        input[type="email"],
+        button {
+          width: 100%;
+          padding: 14px;
+          margin-top: 14px;
+          border-radius: 10px;
+          border: 1px solid #ccc;
+          font-size: 15px;
+        }
+
+        input:focus {
+          border-color: #d62828;
+          outline: none;
+          box-shadow: 0 0 5px rgba(214, 40, 40, 0.2);
+        }
+
+        button {
+          background-color: #d62828;
+          color: white;
+          font-weight: bold;
+          border: none;
+          cursor: pointer;
+          transition: background-color 0.3s ease;
+        }
+
+        button:hover {
+          background-color: #b71c1c;
+        }
+
+        button:disabled {
+          background-color: #e57373;
+          cursor: not-allowed;
+        }
+
+        .hidden {
+          display: none;
+        }
+
+        #status {
+          margin-top: 24px;
+          font-size: 14px;
+          text-align: center;
+          padding: 10px;
+          border-radius: 8px;
+        }
+
+        #status.error {
+          background-color: #ffd6d6;
+          color: #b00020;
+        }
+
+        #status.success {
+          background-color: #d4edda;
+          color: #155724;
+        }
+
+        strong {
+          color: #000;
+        }
+
+        /* Loader Spinner */
+        .loader {
+          border: 4px solid #f3f3f3;
+          border-top: 4px solid #d62828;
+          border-radius: 50%;
+          width: 28px;
+          height: 28px;
+          animation: spin 1s linear infinite;
+          margin: 10px auto;
+          display: none;
+        }
+
+        .loading .loader {
+          display: block;
+        }
+
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <img src="img.png" alt="GoMechanic Logo" class="logo" />
+    <h2>Register as User</h2>
+
+    <div id="register-section">
+        <input type="text" id="username" placeholder="Username" required />
+        <input type="password" id="password" placeholder="Password" required />
+        <input type="email" id="gmail" placeholder="Email" required />
+        <input type="text" id="phonenumber" placeholder="Phone Number" required />
+        <input type="hidden" id="role" value="USER" />
+        <button id="otp-btn" onclick="generateOtp()">Generate OTP</button>
+    </div>
+
+    <div id="otp-section" class="hidden">
+        <input type="text" id="otp" placeholder="Enter OTP" required />
+        <button id="verify-btn" onclick="verifyOtp()">Verify OTP & Register</button>
+    </div>
+
+    <div class="loader" id="loader"></div>
+    <p id="status"></p>
+</div>
+
+<script>
+    let userData = {};
+
+    function generateOtp() {
+      userData = {
+        username: document.getElementById('username').value.trim(),
+        password: document.getElementById('password').value.trim(),
+        gmail: document.getElementById('gmail').value.trim(),
+        phonenumber: document.getElementById('phonenumber').value.trim(),
+        role: document.getElementById('role').value
+      };
+
+      if (!userData.username || !userData.password || !userData.gmail || !userData.phonenumber) {
+        showStatus("❌ Please fill in all fields.", true);
+        return;
+      }
+
+      setLoading(true, "otp-btn");
+
+      fetch('http://localhost:8080/sign/up/user/generate/otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(userData)
+      })
+      .then(res => res.text())
+      .then(msg => {
+        showStatus(msg, false);
+        document.getElementById('register-section').classList.add('hidden');
+        document.getElementById('otp-section').classList.remove('hidden');
+      })
+      .catch(err => showStatus('❌ Failed to generate OTP. ' + err.message, true))
+      .finally(() => setLoading(false, "otp-btn"));
+    }
+
+    function verifyOtp() {
+      const otp = document.getElementById('otp').value.trim();
+      if (!otp) {
+        showStatus("❌ Please enter the OTP.", true);
+        return;
+      }
+
+      setLoading(true, "verify-btn");
+
+      const payload = {
+        gmail: userData.gmail,
+        otp: otp
+      };
+
+      fetch('http://localhost:8080/sign/up/user/verify/otp/and/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      })
+      .then(res => res.text())
+      .then(msg => {
+        if (msg.toLowerCase().includes('success') || msg.match(/^[a-f0-9]{24}$/)) {
+          showStatus(
+   `✅<strong>${msg}</strong><br>You can now log in using your <strong>User ID</strong> and <strong>Password</strong>.`,             false
+          );
+        } else {
+          showStatus("❌ " + msg, true);
+        }
+        document.getElementById('otp-section').classList.add('hidden');
+      })
+      .catch(err => showStatus('❌ OTP verification failed. ' + err.message, true))
+      .finally(() => setLoading(false, "verify-btn"));
+    }
+
+    function showStatus(message, isError) {
+      const status = document.getElementById('status');
+      status.innerHTML = message;
+      status.className = isError ? 'error' : 'success';
+    }
+
+    function setLoading(isLoading, btnId) {
+      const loader = document.getElementById('loader');
+      const button = document.getElementById(btnId);
+
+      if (isLoading) {
+        loader.style.display = 'block';
+        button.disabled = true;
+      } else {
+        loader.style.display = 'none';
+        button.disabled = false;
+      }
+    }
+</script>
+
+</body>
+</html>
